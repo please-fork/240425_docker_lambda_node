@@ -1,0 +1,38 @@
+name: ECR Push
+
+on:
+  push:
+    branches:
+        - main
+    paths-ignore:
+        - 'README.md'
+        - '**.yml'
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: 레포지토리 체크아웃
+      uses: actions/checkout@v4
+
+    - name: AWS 인증 구성
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+
+    - name: Amazon ECR 로그인
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Amazon ECR로 빌드 & 푸시
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REPOSITORY: ${{ github.event.repository.name }}
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
